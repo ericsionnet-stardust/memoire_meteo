@@ -1,8 +1,8 @@
 'use client'
 
 import 'leaflet/dist/leaflet.css'
-import 'react-leaflet-cluster/lib/assets/MarkerCluster.css'
-import 'react-leaflet-cluster/lib/assets/MarkerCluster.Default.css'
+import 'react-leaflet-cluster/dist/assets/MarkerCluster.css'
+import 'react-leaflet-cluster/dist/assets/MarkerCluster.Default.css'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
