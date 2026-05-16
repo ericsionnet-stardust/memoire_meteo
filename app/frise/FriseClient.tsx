@@ -35,10 +35,10 @@ const LABELS: Record<string, string> = {
 }
 
 // Layout SVG
-const SVG_W   = 1160
-const PAD_X   = 48
-const STEP_Y  = 30
-const DOT_R   = 7
+const SVG_W    = 1160
+const PAD_X    = 48
+const STEP_Y   = 30
+const DOT_R    = 7
 const MAX_ROWS = 4
 
 const ZONE_H  = MAX_ROWS * STEP_Y + DOT_R * 2 + 20
@@ -82,7 +82,18 @@ type Props = {
 }
 
 export default function FriseClient({ events, yearMin, yearMax, tickStep }: Props) {
-  const [selected, setSelected] = useState<Selected | null>(null)
+  const [selected,     setSelected]     = useState<Selected | null>(null)
+  const [hiddenTypes,  setHiddenTypes]  = useState<Set<string>>(new Set())
+
+  function toggleType(type: string) {
+    setHiddenTypes(prev => {
+      const next = new Set(prev)
+      if (next.has(type)) next.delete(type)
+      else next.add(type)
+      return next
+    })
+    setSelected(null)
+  }
 
   const ticks = useMemo(() =>
     Array.from(
@@ -118,6 +129,11 @@ export default function FriseClient({ events, yearMin, yearMax, tickStep }: Prop
     })
   }, [dated, yearMin, yearMax])
 
+  const visible = useMemo(
+    () => positioned.filter(e => !hiddenTypes.has(e.type_phenomene ?? '')),
+    [positioned, hiddenTypes],
+  )
+
   function handleDotClick(e: (typeof positioned)[number]) {
     setSelected(prev => prev?.event.id === e.id ? null : { event: e, cx: e.cx, cy: e.cy })
   }
@@ -134,8 +150,56 @@ export default function FriseClient({ events, yearMin, yearMax, tickStep }: Prop
     return { left, top, width: TOOLTIP_W }
   })() : null
 
+  const allTypes = Object.keys(LABELS)
+  const hasFilter = hiddenTypes.size > 0
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+
+      {/* Filtres par type */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {allTypes.map(type => {
+            const hidden  = hiddenTypes.has(type)
+            const color   = COULEURS[type]
+            return (
+              <button
+                key={type}
+                onClick={() => toggleType(type)}
+                className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-all ${
+                  hidden
+                    ? 'bg-white text-slate-300 border-slate-200'
+                    : 'border-transparent'
+                }`}
+                style={hidden ? {} : {
+                  backgroundColor: color + '20',
+                  color,
+                  borderColor: color + '40',
+                }}
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: hidden ? '#cbd5e1' : color }}
+                />
+                {LABELS[type]}
+              </button>
+            )
+          })}
+        </div>
+        {hasFilter && (
+          <button
+            onClick={() => { setHiddenTypes(new Set()); setSelected(null) }}
+            className="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2"
+          >
+            Tout afficher
+          </button>
+        )}
+        <span className="text-xs text-slate-400 ml-auto tabular-nums">
+          {visible.length} / {positioned.length} événement{positioned.length > 1 ? 's' : ''}
+        </span>
+      </div>
+
+      {/* SVG + tooltip */}
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <div className="relative" style={{ width: SVG_W, minWidth: SVG_W }}>
 
@@ -156,7 +220,7 @@ export default function FriseClient({ events, yearMin, yearMax, tickStep }: Prop
               )
             })}
 
-            {/* Demi-graduations (uniquement si tickStep ≤ 10) */}
+            {/* Demi-graduations */}
             {tickStep <= 10 && Array.from(
               { length: Math.floor((yearMax - yearMin) / 5) + 1 },
               (_, i) => yearMin + i * 5,
@@ -169,7 +233,7 @@ export default function FriseClient({ events, yearMin, yearMax, tickStep }: Prop
             ))}
 
             {/* Événements */}
-            {positioned.map(e => {
+            {visible.map(e => {
               const color      = COULEURS[e.type_phenomene ?? ''] ?? '#94a3b8'
               const isSelected = selected?.event.id === e.id
               return (
@@ -253,17 +317,7 @@ export default function FriseClient({ events, yearMin, yearMax, tickStep }: Prop
         </div>
       </div>
 
-      {/* Légende */}
-      <div className="flex flex-wrap gap-x-5 gap-y-1.5">
-        {Object.entries(LABELS).map(([key, label]) => (
-          <div key={key} className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COULEURS[key] }} />
-            <span className="text-xs text-slate-500">{label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Événements sans date exploitable pour cette période */}
+      {/* Événements sans date */}
       {undated.length > 0 && (
         <details className="group">
           <summary className="text-sm text-slate-400 cursor-pointer select-none hover:text-slate-600 list-none flex items-center gap-1.5">
