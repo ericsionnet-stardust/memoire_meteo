@@ -56,7 +56,7 @@ export default async function EvenementPage({
     <div className="min-h-screen bg-white">
       <Header active="frise" />
 
-      <main className="max-w-2xl mx-auto px-6 py-10">
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
         <Link href="/frise" className="text-sm text-slate-400 hover:text-slate-600 inline-flex items-center gap-1 mb-8">
           ← Retour à la frise
         </Link>

@@ -27,7 +27,7 @@ export default async function FrisePage({
     <div className="min-h-screen bg-white flex flex-col">
       <Header active="frise" />
 
-      <main className="max-w-6xl w-full mx-auto px-6 py-8 flex flex-col gap-6">
+      <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col gap-6">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Frise chronologique</h2>
           <p className="text-sm text-slate-400 mt-0.5 tabular-nums">
