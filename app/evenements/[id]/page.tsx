@@ -22,9 +22,9 @@ const COULEURS_PHENOMENE: Record<string, string> = {
 }
 
 function fiabiliteLabel(n: number | null) {
-  if (n === 3) return { label: 'Haute fiabilité', class: 'text-green-700' }
-  if (n === 2) return { label: 'Fiabilité moyenne', class: 'text-yellow-600' }
-  return { label: 'Fiabilité à vérifier', class: 'text-red-600' }
+  if (n === 3) return { label: 'Haute fiabilité',     class: 'text-green-700' }
+  if (n === 2) return { label: 'Fiabilité moyenne',   class: 'text-yellow-600' }
+  return             { label: 'Fiabilité à vérifier', class: 'text-red-600' }
 }
 
 function formatDate(d: string | null, approx: string | null) {
@@ -35,11 +35,7 @@ function formatDate(d: string | null, approx: string | null) {
 async function getEvenement(id: string) {
   const supabase = createServiceClient()
   const { data, error } = await supabase
-    .from('evenements_meteo')
-    .select('*')
-    .eq('id', id)
-    .single()
-
+    .from('evenements_meteo').select('*').eq('id', id).single()
   if (error || !data) return null
   return data
 }
@@ -53,11 +49,11 @@ export default async function EvenementPage({
   const e = await getEvenement(id)
   if (!e) notFound()
 
-  const fiab = fiabiliteLabel(e.niveau_fiabilite)
+  const fiab     = fiabiliteLabel(e.niveau_fiabilite)
   const phenoKey = e.type_phenomene ?? ''
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-white">
       <Header active="frise" />
 
       <main className="max-w-2xl mx-auto px-6 py-10">
@@ -65,32 +61,28 @@ export default async function EvenementPage({
           ← Retour à la frise
         </Link>
 
-        <article className="bg-white rounded-xl border border-slate-200 p-7 shadow-sm space-y-5">
-          {/* En-tête */}
+        <article className="bg-white rounded-xl border border-slate-200 p-7 space-y-5">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-2 flex-wrap">
               <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${COULEURS_PHENOMENE[phenoKey] ?? 'bg-slate-100 text-slate-700'}`}>
                 {LABELS_PHENOMENE[phenoKey] ?? phenoKey}
               </span>
-              <span className="text-slate-500 text-sm">
+              <span className="text-slate-500 text-sm tabular-nums">
                 {formatDate(e.date_evenement, e.date_approx)}
               </span>
             </div>
             <span className={`text-xs font-medium ${fiab.class}`}>{fiab.label}</span>
           </div>
 
-          {/* Lieu */}
           <h2 className="text-xl font-bold text-slate-900 leading-snug">
             {e.lieu}
             {e.region && <span className="font-normal text-slate-500 text-base"> — {e.region}</span>}
           </h2>
 
-          {/* Description complète */}
           <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-line">
             {e.description}
           </p>
 
-          {/* Source */}
           {(e.source_primaire || e.lien_scan) && (
             <div className="border-t border-slate-100 pt-4 flex items-center justify-between gap-3 flex-wrap">
               {e.source_primaire && (
