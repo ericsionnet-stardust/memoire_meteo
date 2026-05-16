@@ -1,7 +1,11 @@
 'use client'
 
 import 'leaflet/dist/leaflet.css'
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
+import 'react-leaflet-cluster/lib/assets/MarkerCluster.css'
+import 'react-leaflet-cluster/lib/assets/MarkerCluster.Default.css'
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import MarkerClusterGroup from 'react-leaflet-cluster'
+import L from 'leaflet'
 
 type EventPoint = {
   id: string
@@ -34,6 +38,16 @@ const LABELS: Record<string, string> = {
   gel:               'Gel',
 }
 
+function createDotIcon(color: string) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2.5px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.25);opacity:0.9"></div>`,
+    iconSize:   [14, 14],
+    iconAnchor: [7, 7],
+    popupAnchor:[0, -10],
+  })
+}
+
 function formatDate(d: string | null, approx: string | null) {
   if (d) return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
   return approx ?? '—'
@@ -53,48 +67,47 @@ export default function CarteMap({ events }: { events: EventPoint[] }) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {events.map(e => {
-          const color = COULEURS[e.type_phenomene ?? ''] ?? '#94a3b8'
-          const label = LABELS[e.type_phenomene ?? ''] ?? e.type_phenomene
-          return (
-            <CircleMarker
-              key={e.id}
-              center={[e.latitude, e.longitude]}
-              radius={8}
-              pathOptions={{ color, fillColor: color, fillOpacity: 0.8, weight: 1.5 }}
-            >
-              <Popup maxWidth={300}>
-                <div className="space-y-1.5 py-0.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-medium" style={{ color }}>
-                      {label}
-                    </span>
-                    <span className="text-xs text-slate-400 tabular-nums">
-                      {formatDate(e.date_evenement, e.date_approx)}
-                    </span>
+        <MarkerClusterGroup chunkedLoading>
+          {events.map(e => {
+            const color = COULEURS[e.type_phenomene ?? ''] ?? '#94a3b8'
+            const label = LABELS[e.type_phenomene ?? ''] ?? e.type_phenomene
+            return (
+              <Marker
+                key={e.id}
+                position={[e.latitude, e.longitude]}
+                icon={createDotIcon(color)}
+              >
+                <Popup maxWidth={300}>
+                  <div className="space-y-1.5 py-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-medium" style={{ color }}>{label}</span>
+                      <span className="text-xs text-slate-400 tabular-nums">
+                        {formatDate(e.date_evenement, e.date_approx)}
+                      </span>
+                    </div>
+                    <div className="font-semibold text-slate-900 text-sm leading-snug">
+                      {e.lieu}
+                      {e.region && <span className="font-normal text-slate-400"> — {e.region}</span>}
+                    </div>
+                    {e.description && (
+                      <p className="text-xs text-slate-600 leading-relaxed">{e.description}</p>
+                    )}
+                    {e.lien_scan && (
+                      <a
+                        href={e.lien_scan}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-500 hover:underline block pt-0.5"
+                      >
+                        Consulter la source →
+                      </a>
+                    )}
                   </div>
-                  <div className="font-semibold text-slate-900 text-sm leading-snug">
-                    {e.lieu}
-                    {e.region && <span className="font-normal text-slate-400"> — {e.region}</span>}
-                  </div>
-                  {e.description && (
-                    <p className="text-xs text-slate-600 leading-relaxed">{e.description}</p>
-                  )}
-                  {e.lien_scan && (
-                    <a
-                      href={e.lien_scan}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-blue-500 hover:underline block pt-0.5"
-                    >
-                      Consulter la source →
-                    </a>
-                  )}
-                </div>
-              </Popup>
-            </CircleMarker>
-          )
-        })}
+                </Popup>
+              </Marker>
+            )
+          })}
+        </MarkerClusterGroup>
       </MapContainer>
 
       {/* Légende */}

@@ -38,17 +38,29 @@ function formatDate(d: string | null, approx: string | null) {
   return approx ?? '—'
 }
 
+type SortKey = 'date_desc' | 'date_asc' | 'fiabilite' | 'lieu'
+
 async function getEvenements(
   type?: string,
   region?: string,
   yearMin?: number,
   yearMax?: number,
+  sort: SortKey = 'date_desc',
 ): Promise<Evenement[]> {
   const supabase = createServiceClient()
+
+  const sortConfig: Record<SortKey, { column: string; ascending: boolean }> = {
+    date_desc: { column: 'date_evenement', ascending: false },
+    date_asc:  { column: 'date_evenement', ascending: true  },
+    fiabilite: { column: 'niveau_fiabilite', ascending: false },
+    lieu:      { column: 'lieu', ascending: true },
+  }
+  const { column, ascending } = sortConfig[sort]
+
   let query = supabase
     .from('evenements_meteo')
     .select('id, date_evenement, date_approx, lieu, region, type_phenomene, description, source_primaire, niveau_fiabilite, lien_scan, statut')
-    .order('date_evenement', { ascending: false })
+    .order(column, { ascending })
 
   if (type)    query = query.eq('type_phenomene', type)
   if (region)  query = query.eq('region', region)
@@ -77,10 +89,11 @@ export default async function Home({
   const params  = await searchParams
   const type    = typeof params.type   === 'string' ? params.type   : undefined
   const region  = typeof params.region === 'string' ? params.region : undefined
+  const sort    = (typeof params.sort  === 'string' ? params.sort   : 'date_desc') as SortKey
   const periode = getPeriode(typeof params.periode === 'string' ? params.periode : undefined)
 
   const [evenements, regions] = await Promise.all([
-    getEvenements(type, region, periode.yearMin, periode.yearMax),
+    getEvenements(type, region, periode.yearMin, periode.yearMax, sort),
     getRegions(),
   ])
 
