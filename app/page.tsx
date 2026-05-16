@@ -18,28 +18,19 @@ type Evenement = {
   statut: string | null
 }
 
-const LABELS_PHENOMENE: Record<string, string> = {
-  inondation:        'Inondation',
-  canicule:          'Canicule',
-  neige_hors_saison: 'Neige hors saison',
-  tempete:           'Tempête',
-  secheresse:        'Sécheresse',
-  gel:               'Gel',
-}
-
-const COULEURS_PHENOMENE: Record<string, string> = {
-  inondation:        'bg-blue-100 text-blue-800',
-  canicule:          'bg-orange-100 text-orange-800',
-  neige_hors_saison: 'bg-sky-100 text-sky-800',
-  tempete:           'bg-gray-100 text-gray-800',
-  secheresse:        'bg-yellow-100 text-yellow-800',
-  gel:               'bg-indigo-100 text-indigo-800',
-}
+const TYPES_META = [
+  { value: 'inondation',        label: 'Inondation',        dot: '#3b82f6', badge: 'bg-blue-100 text-blue-800' },
+  { value: 'canicule',          label: 'Canicule',          dot: '#f97316', badge: 'bg-orange-100 text-orange-800' },
+  { value: 'neige_hors_saison', label: 'Neige hors saison', dot: '#0ea5e9', badge: 'bg-sky-100 text-sky-800' },
+  { value: 'tempete',           label: 'Tempête',           dot: '#6b7280', badge: 'bg-gray-100 text-gray-800' },
+  { value: 'secheresse',        label: 'Sécheresse',        dot: '#eab308', badge: 'bg-yellow-100 text-yellow-800' },
+  { value: 'gel',               label: 'Gel',               dot: '#6366f1', badge: 'bg-indigo-100 text-indigo-800' },
+]
 
 function fiabiliteLabel(n: number | null) {
-  if (n === 3) return { label: 'Haute fiabilité',      class: 'text-green-700' }
-  if (n === 2) return { label: 'Fiabilité moyenne',    class: 'text-yellow-600' }
-  return             { label: 'Fiabilité à vérifier',  class: 'text-red-600' }
+  if (n === 3) return { label: 'Haute fiabilité',     class: 'text-green-700' }
+  if (n === 2) return { label: 'Fiabilité moyenne',   class: 'text-yellow-600' }
+  return             { label: 'Fiabilité à vérifier', class: 'text-red-600' }
 }
 
 function formatDate(d: string | null, approx: string | null) {
@@ -93,12 +84,20 @@ export default async function Home({
     getRegions(),
   ])
 
+  // Comptage par type pour la barre de stats
+  const countByType = TYPES_META.map(t => ({
+    ...t,
+    count: evenements.filter(e => e.type_phenomene === t.value).length,
+  })).filter(t => t.count > 0)
+
   return (
     <div className="min-h-screen bg-white">
       <Header active="liste" />
 
       <main className="max-w-4xl mx-auto px-6 py-8">
-        <div className="mb-6">
+
+        {/* Filtres */}
+        <div className="mb-5">
           <Suspense fallback={null}>
             <FilterBar regions={regions} />
           </Suspense>
@@ -110,19 +109,34 @@ export default async function Home({
           </p>
         ) : (
           <div className="space-y-4">
-            <p className="text-sm text-slate-400 tabular-nums">
-              {evenements.length} événement{evenements.length > 1 ? 's' : ''}
-              {type || region ? ' correspondant aux filtres' : ''}
-            </p>
+
+            {/* Barre de stats */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 py-3 border-y border-slate-100">
+              <span className="text-sm font-semibold text-slate-900 tabular-nums">
+                {evenements.length} événement{evenements.length > 1 ? 's' : ''}
+              </span>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                {countByType.map(t => (
+                  <span key={t.value} className="flex items-center gap-1.5 text-xs text-slate-500 tabular-nums">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: t.dot }} />
+                    {t.label}
+                    <span className="font-semibold text-slate-700">{t.count}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Liste des événements */}
             {evenements.map(e => {
-              const fiab    = fiabiliteLabel(e.niveau_fiabilite)
+              const fiab     = fiabiliteLabel(e.niveau_fiabilite)
               const phenoKey = e.type_phenomene ?? ''
+              const meta     = TYPES_META.find(t => t.value === phenoKey)
               return (
                 <article key={e.id} className="bg-white rounded-lg border border-slate-200 p-5">
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${COULEURS_PHENOMENE[phenoKey] ?? 'bg-slate-100 text-slate-700'}`}>
-                        {LABELS_PHENOMENE[phenoKey] ?? phenoKey}
+                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${meta?.badge ?? 'bg-slate-100 text-slate-700'}`}>
+                        {meta?.label ?? phenoKey}
                       </span>
                       <span className="text-slate-500 text-sm tabular-nums">
                         {formatDate(e.date_evenement, e.date_approx)}
