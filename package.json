@@ -9,6 +9,8 @@
     "lint": "eslint",
     "db:seed": "tsx scripts/setup-db.ts",
     "db:collect": "node scripts/collect-agent.js",
+    "db:collect-avant1800": "node scripts/collect-periode.js --avant-1800",
+    "db:collect-xx-xxi": "node scripts/collect-periode.js --xx-xxi",
     "db:scrape": "node scripts/scrape-sources.js",
     "db:geocode": "node scripts/geocode.js"
   },
