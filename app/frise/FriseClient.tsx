@@ -34,32 +34,35 @@ const LABELS: Record<string, string> = {
   gel:               'Gel',
 }
 
-const YEAR_MIN  = 1800
-const YEAR_MAX  = 1900
-const DECADES   = Array.from({ length: 11 }, (_, i) => YEAR_MIN + i * 10)
-
-// Layout SVG — réduit et centré
+// Layout SVG
 const SVG_W   = 1160
-const PAD_X   = 48    // marge gauche / droite
-const STEP_Y  = 30    // espacement vertical entre événements superposés
+const PAD_X   = 48
+const STEP_Y  = 30
 const DOT_R   = 7
-const MAX_ROWS = 4    // nombre max de rangées estimé (haut ou bas)
+const MAX_ROWS = 4
 
-// Espace nécessaire : MAX_ROWS * STEP_Y + DOT_R*2 + marge
 const ZONE_H  = MAX_ROWS * STEP_Y + DOT_R * 2 + 20
-const AXIS_Y  = ZONE_H + 16           // marge haute + zone haute
-const LABEL_H = 24                    // hauteur labels années
-const SVG_H   = AXIS_Y + ZONE_H + LABEL_H + 16  // marge basse
+const AXIS_Y  = ZONE_H + 16
+const LABEL_H = 24
+const SVG_H   = AXIS_Y + ZONE_H + LABEL_H + 16
 
-function yearToX(year: number) {
-  return PAD_X + ((year - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) * (SVG_W - PAD_X * 2)
+function yearToX(year: number, yearMin: number, yearMax: number) {
+  return PAD_X + ((year - yearMin) / (yearMax - yearMin)) * (SVG_W - PAD_X * 2)
 }
 
-function extractYear(e: Evenement): number | null {
-  if (e.date_evenement) return new Date(e.date_evenement).getFullYear()
+function extractYear(e: Evenement, yearMin: number, yearMax: number): number | null {
+  if (e.date_evenement) {
+    const y = new Date(e.date_evenement).getFullYear()
+    return y >= yearMin && y <= yearMax ? y : null
+  }
   if (e.date_approx) {
-    const m = e.date_approx.match(/\b(18\d\d)\b/)
-    if (m) return parseInt(m[1])
+    const matches = e.date_approx.match(/\b(\d{3,4})\b/g)
+    if (matches) {
+      for (const m of matches) {
+        const y = parseInt(m)
+        if (y >= yearMin && y <= yearMax) return y
+      }
+    }
   }
   return null
 }
@@ -71,55 +74,61 @@ function formatDate(d: string | null, approx: string | null) {
 
 type Selected = { event: Evenement; cx: number; cy: number }
 
-export default function FriseClient({ events }: { events: Evenement[] }) {
+type Props = {
+  events: Evenement[]
+  yearMin: number
+  yearMax: number
+  tickStep: number
+}
+
+export default function FriseClient({ events, yearMin, yearMax, tickStep }: Props) {
   const [selected, setSelected] = useState<Selected | null>(null)
+
+  const ticks = useMemo(() =>
+    Array.from(
+      { length: Math.floor((yearMax - yearMin) / tickStep) + 1 },
+      (_, i) => yearMin + i * tickStep,
+    ),
+    [yearMin, yearMax, tickStep],
+  )
 
   const { dated, undated } = useMemo(() => {
     const dated: (Evenement & { year: number })[] = []
     const undated: Evenement[] = []
     for (const e of events) {
-      const year = extractYear(e)
-      if (year !== null && year >= YEAR_MIN && year <= YEAR_MAX) {
-        dated.push({ ...e, year })
-      } else {
-        undated.push(e)
-      }
+      const year = extractYear(e, yearMin, yearMax)
+      if (year !== null) dated.push({ ...e, year })
+      else undated.push(e)
     }
     dated.sort((a, b) => a.year - b.year)
     return { dated, undated }
-  }, [events])
+  }, [events, yearMin, yearMax])
 
-  // Position (cx, cy) de chaque événement
   const positioned = useMemo(() => {
     const countPerYear = new Map<number, number>()
-    return dated.map((e) => {
-      const idx = countPerYear.get(e.year) ?? 0
+    return dated.map(e => {
+      const idx   = countPerYear.get(e.year) ?? 0
       countPerYear.set(e.year, idx + 1)
       const above = idx % 2 === 0
       const rank  = Math.floor(idx / 2)
       const cy    = above
         ? AXIS_Y - DOT_R * 2 - rank * STEP_Y
         : AXIS_Y + DOT_R * 2 + rank * STEP_Y
-      return { ...e, cx: yearToX(e.year), cy }
+      return { ...e, cx: yearToX(e.year, yearMin, yearMax), cy }
     })
-  }, [dated])
+  }, [dated, yearMin, yearMax])
 
   function handleDotClick(e: (typeof positioned)[number]) {
-    if (selected?.event.id === e.id) {
-      setSelected(null)
-    } else {
-      setSelected({ event: e, cx: e.cx, cy: e.cy })
-    }
+    setSelected(prev => prev?.event.id === e.id ? null : { event: e, cx: e.cx, cy: e.cy })
   }
 
-  // Position du tooltip : centré sur le dot, au-dessus si dot en bas, en dessous sinon
-  const TOOLTIP_W = 420
-  const TOOLTIP_EST_H = 180  // hauteur estimée pour le placement
+  const TOOLTIP_W     = 420
+  const TOOLTIP_EST_H = 180
   const tooltipStyle = selected ? (() => {
-    const rawLeft = selected.cx - TOOLTIP_W / 2
-    const left = Math.min(Math.max(rawLeft, 4), SVG_W - TOOLTIP_W - 4)
-    const showAbove = selected.cy > AXIS_Y  // dot sous l'axe → tooltip au-dessus
-    const top = showAbove
+    const rawLeft   = selected.cx - TOOLTIP_W / 2
+    const left      = Math.min(Math.max(rawLeft, 4), SVG_W - TOOLTIP_W - 4)
+    const showAbove = selected.cy > AXIS_Y
+    const top       = showAbove
       ? selected.cy - TOOLTIP_EST_H - DOT_R - 8
       : selected.cy + DOT_R + 8
     return { left, top, width: TOOLTIP_W }
@@ -127,21 +136,16 @@ export default function FriseClient({ events }: { events: Evenement[] }) {
 
   return (
     <div className="space-y-5">
-      {/* Conteneur SVG + tooltip superposé */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <div className="relative" style={{ width: SVG_W, minWidth: SVG_W }}>
 
           <svg width={SVG_W} height={SVG_H} className="block">
             {/* Axe */}
-            <line
-              x1={PAD_X} y1={AXIS_Y}
-              x2={SVG_W - PAD_X} y2={AXIS_Y}
-              stroke="#cbd5e1" strokeWidth={2}
-            />
+            <line x1={PAD_X} y1={AXIS_Y} x2={SVG_W - PAD_X} y2={AXIS_Y} stroke="#cbd5e1" strokeWidth={2} />
 
-            {/* Graduations décennie */}
-            {DECADES.map((yr) => {
-              const x = yearToX(yr)
+            {/* Graduations principales */}
+            {ticks.map(yr => {
+              const x = yearToX(yr, yearMin, yearMax)
               return (
                 <g key={yr}>
                   <line x1={x} y1={AXIS_Y - 7} x2={x} y2={AXIS_Y + 7} stroke="#94a3b8" strokeWidth={1.5} />
@@ -152,20 +156,21 @@ export default function FriseClient({ events }: { events: Evenement[] }) {
               )
             })}
 
-            {/* Demi-graduations (5 ans) */}
-            {Array.from({ length: 21 }, (_, i) => YEAR_MIN + i * 5)
-              .filter((yr) => yr % 10 !== 0)
-              .map((yr) => (
-                <line key={yr}
-                  x1={yearToX(yr)} y1={AXIS_Y - 3}
-                  x2={yearToX(yr)} y2={AXIS_Y + 3}
-                  stroke="#e2e8f0" strokeWidth={1}
-                />
-              ))}
+            {/* Demi-graduations (uniquement si tickStep ≤ 10) */}
+            {tickStep <= 10 && Array.from(
+              { length: Math.floor((yearMax - yearMin) / 5) + 1 },
+              (_, i) => yearMin + i * 5,
+            ).filter(yr => yr % tickStep !== 0).map(yr => (
+              <line key={yr}
+                x1={yearToX(yr, yearMin, yearMax)} y1={AXIS_Y - 3}
+                x2={yearToX(yr, yearMin, yearMax)} y2={AXIS_Y + 3}
+                stroke="#e2e8f0" strokeWidth={1}
+              />
+            ))}
 
             {/* Événements */}
-            {positioned.map((e) => {
-              const color = COULEURS[e.type_phenomene ?? ''] ?? '#94a3b8'
+            {positioned.map(e => {
+              const color      = COULEURS[e.type_phenomene ?? ''] ?? '#94a3b8'
               const isSelected = selected?.event.id === e.id
               return (
                 <g key={e.id} onClick={() => handleDotClick(e)} style={{ cursor: 'pointer' }}>
@@ -187,13 +192,12 @@ export default function FriseClient({ events }: { events: Evenement[] }) {
             })}
           </svg>
 
-          {/* Tooltip flottant — absolument positionné dans le conteneur SVG */}
+          {/* Tooltip */}
           {selected && tooltipStyle && (
             <div
               className="absolute z-10 bg-white border border-slate-200 rounded-lg shadow-lg p-3.5 space-y-1.5"
               style={{ left: tooltipStyle.left, top: tooltipStyle.top, width: tooltipStyle.width }}
             >
-              {/* En-tête */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span
@@ -205,7 +209,7 @@ export default function FriseClient({ events }: { events: Evenement[] }) {
                   >
                     {LABELS[selected.event.type_phenomene ?? ''] ?? selected.event.type_phenomene}
                   </span>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-400 tabular-nums">
                     {formatDate(selected.event.date_evenement, selected.event.date_approx)}
                   </span>
                 </div>
@@ -216,7 +220,6 @@ export default function FriseClient({ events }: { events: Evenement[] }) {
                 >×</button>
               </div>
 
-              {/* Lieu */}
               <p className="text-sm font-semibold text-slate-800 leading-snug">
                 {selected.event.lieu}
                 {selected.event.region && (
@@ -224,18 +227,13 @@ export default function FriseClient({ events }: { events: Evenement[] }) {
                 )}
               </p>
 
-              {/* Description */}
               <p className="text-xs text-slate-600 leading-relaxed line-clamp-4">
                 {selected.event.description}
               </p>
 
-              {/* Liens bas de carte */}
               <div className="flex items-center justify-between gap-2 pt-0.5 flex-wrap">
                 {(selected.event.description?.length ?? 0) > 300 && (
-                  <Link
-                    href={`/evenements/${selected.event.id}`}
-                    className="text-xs text-blue-500 hover:underline"
-                  >
+                  <Link href={`/evenements/${selected.event.id}`} className="text-xs text-blue-500 hover:underline">
                     Lire la suite →
                   </Link>
                 )}
@@ -265,15 +263,15 @@ export default function FriseClient({ events }: { events: Evenement[] }) {
         ))}
       </div>
 
-      {/* Événements sans date exploitable */}
+      {/* Événements sans date exploitable pour cette période */}
       {undated.length > 0 && (
         <details className="group">
           <summary className="text-sm text-slate-400 cursor-pointer select-none hover:text-slate-600 list-none flex items-center gap-1.5">
             <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
-            {undated.length} événement{undated.length > 1 ? 's' : ''} sans date précise
+            {undated.length} événement{undated.length > 1 ? 's' : ''} sans date précise pour cette période
           </summary>
           <div className="mt-3 space-y-1.5 pl-3 border-l-2 border-slate-100">
-            {undated.map((e) => (
+            {undated.map(e => (
               <div key={e.id} className="text-sm">
                 <span
                   className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle"
