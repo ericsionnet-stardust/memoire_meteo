@@ -94,7 +94,7 @@ export default async function Home({
     <div className="min-h-screen bg-white">
       <Header active="liste" />
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
         {/* Filtres */}
         <div className="mb-5">

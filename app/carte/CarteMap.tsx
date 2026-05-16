@@ -41,7 +41,7 @@ function formatDate(d: string | null, approx: string | null) {
 
 export default function CarteMap({ events }: { events: EventPoint[] }) {
   return (
-    <div className="relative w-full" style={{ height: '600px' }}>
+    <div className="relative w-full h-[400px] sm:h-[500px] lg:h-[600px]">
       <MapContainer
         center={[46.5, 2.5]}
         zoom={6}
