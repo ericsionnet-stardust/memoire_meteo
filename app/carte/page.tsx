@@ -32,9 +32,8 @@ export default async function CartePage({
       <Header active="carte" />
 
       <div className="flex-1 max-w-6xl w-full mx-auto px-6 py-6 flex flex-col gap-4">
-        <p className="text-sm text-slate-400 tabular-nums">
-          {events.length} événement{events.length > 1 ? 's' : ''} géolocalisé{events.length > 1 ? 's' : ''}
-          {' — '}cliquer un marqueur pour les détails
+        <p className="text-sm text-slate-400">
+          Cliquer un marqueur pour les détails
         </p>
 
         <div className="flex-1 min-h-[600px]">
